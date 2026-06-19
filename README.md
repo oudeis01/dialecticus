@@ -8,7 +8,14 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/oudeis01/dialecticus)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-An evidence-grounded debate harness for language models. Two models argue a topic
+**Think of it as a stress test for arguments.** You hand it a position (a
+proposal, a paper, a plan, a chain of reasoning) and it puts that structure under
+adversarial load: a second model working the same evidence, hunting for the joint
+where the argument gives. It is the argumentative equivalent of load-testing
+software before you trust it in production.
+
+The mechanism underneath is an evidence-grounded debate harness for language
+models. Two models argue a topic
 you scope, each claim cited back to a read-only corpus you point them at, while
 you moderate live at turn boundaries. Mix a premium model and a free one in the
 same room and pay only for the seat that matters.
