@@ -45,7 +45,7 @@ show_thinking: true # DeepSeek-family models stream reasoning; others stay silen
 # scoped to this one directory; read_file is line-numbered and paged with
 # offset+limit, so large papers are read in slices rather than whole.
 file_access:
-  directory: /home/choiharam/jobsearch/phds/reading-list/plank/mds
+  directory: ./shared
 
 personas:
   - name: Reconciler
