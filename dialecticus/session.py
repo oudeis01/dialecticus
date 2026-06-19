@@ -129,10 +129,24 @@ class Recorder:
         elif isinstance(event, TurnComplete):
             if self._cur is not None:
                 if event.usage is not None:
-                    self._cur["usage"] = {
+                    usage = {
                         "input_tokens": event.usage.input_tokens,
                         "output_tokens": event.usage.output_tokens,
                     }
+                    # Persist the Anthropic prompt-cache breakdown so the saved
+                    # file reflects true input cost (cache-write at 1.25x,
+                    # cache-read at 0.1x), not just the tiny uncached delta that
+                    # input_tokens reports. Omitted for providers that never set
+                    # them, keeping non-Anthropic turns clean.
+                    if event.usage.cache_read_input_tokens is not None:
+                        usage["cache_read_input_tokens"] = (
+                            event.usage.cache_read_input_tokens
+                        )
+                    if event.usage.cache_creation_input_tokens is not None:
+                        usage["cache_creation_input_tokens"] = (
+                            event.usage.cache_creation_input_tokens
+                        )
+                    self._cur["usage"] = usage
                 self._commit()
 
     def _commit(self) -> None:
