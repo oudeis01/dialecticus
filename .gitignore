@@ -11,3 +11,13 @@ sessions/
 
 # Per-machine Claude Code settings
 .claude/settings.local.json
+
+# Persona configs are private by default (they may point at private corpora or
+# describe personal use). Ignore every personas.*.yaml, then whitelist the ones
+# meant to ship. Add a new "!" line whenever you intend to publish another one.
+personas.*.yaml
+!personas.example.yaml
+!personas.openrouter-free.yaml
+!personas.zen.yaml
+!personas.zombie-debate.yaml
+!personas.self-review.yaml
