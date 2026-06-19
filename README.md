@@ -8,8 +8,10 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/oudeis01/dialecticus)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-Watch different language models converse with each other within an identity and
-topic scope you set.
+An evidence-grounded debate harness for language models. Two models argue a topic
+you scope, each claim cited back to a read-only corpus you point them at, while
+you moderate live at turn boundaries. Mix a premium model and a free one in the
+same room and pay only for the seat that matters.
 
 
 
@@ -17,57 +19,168 @@ https://github.com/user-attachments/assets/9bb82c05-5e6a-4ef3-abed-d4af03ec7c3f
 
 
 
-A normalized streaming engine, two provider adapters, and a Textual TUI you can
-intervene in (pause / step / inject / toggle thinking). The console renderer is
-still there behind `--plain` and reads the exact same engine event stream.
+## What makes it different
 
-## Architecture
+Plenty of projects let two bots talk past each other. dialecticus is built for the
+cases where the conversation has to be **checkable** and **steerable**:
 
+- **Grounded, not vibes.** Point a debate at a directory and each persona answers
+  from the files, with a `file:line` citation you can re-open. ([details](#grounded-debate-read-only-file-access))
+- **You moderate live.** Pause, single-step, inject, or toggle thinking, all at
+  turn boundaries so intervening never tears a streaming reply in half. ([details](#tui-controls))
+- **Mix premium and free in one room.** Native Anthropic plus one OpenAI-compatible
+  adapter reaches everything else by `base_url`; per-speaker context budgeting and
+  prompt caching keep only the expensive seat costing money. ([details](#context-budgeting))
+- **Built to be left alone.** 429s are retried, a failed turn is isolated instead
+  of crashing the run, and every session is persisted and exportable. ([details](#rate-limits-and-errors))
+
+## How it works
+
+```mermaid
+flowchart LR
+    cfg[config.yaml]
+    loop["Engine<br/>turn loop · shared transcript<br/>intervention gate"]
+    anth["AnthropicAdapter<br/>native Messages API"]
+    oai["OpenAIAdapter<br/>any OpenAI-compatible endpoint"]
+    ui["Textual TUI<br/>(or --plain console)"]
+
+    cfg --> loop
+    loop <--> anth
+    loop <--> oai
+    loop -->|normalized events| ui
 ```
-config.yaml ─▶ Engine (turn loop, shared transcript, intervention gate)
-                  │  builds each persona's view of the conversation
-                  ▼
-            ProviderAdapter        ─┬─ AnthropicAdapter   (native Messages API)
-            (normalized events)     └─ OpenAIAdapter      (any OpenAI-compatible endpoint)
-                  │
-                  ▼  TurnStarted | ThinkingDelta | TextDelta | TurnComplete | Injected
-            Textual TUI  (or console renderer with --plain)
-```
 
-Pause, single-step, moderator injection, and stop are applied at turn boundaries,
-so intervening never tears a streaming reply in half.
+One engine drives the turn loop and owns the shared transcript; two adapters
+normalize every provider into the same event stream (`TurnStarted`,
+`ThinkingDelta`, `TextDelta`, `TurnComplete`, `Injected`); the TUI and the
+`--plain` console renderer both read that one stream. Provider coverage is the
+whole story of those two adapters: native Anthropic for Claude, and one
+OpenAI-compatible adapter that reaches everything else (OpenAI, OpenRouter, local
+servers) by changing `base_url`. See [Provider boundary](#adding-another-openai-compatible-gateway)
+for what that covers and where it stops.
 
-The two adapters are the whole story for provider coverage: native Anthropic for
-Claude, and one OpenAI-compatible adapter that reaches everything else (OpenAI,
-OpenRouter's catalog of model makers, local servers) by changing `base_url`.
-
-## Install
+## Quickstart
 
 ```sh
 pip install -e .
+cp .env.example .env     # fill in the keys your personas need
 ```
 
-## Run
-
-Set the keys your personas need, then point at a YAML file:
-
-Keys come from the environment, or from a local `.env` (loaded automatically):
+Keys come from the environment or a local `.env` (loaded automatically). Point at
+any persona YAML:
 
 ```sh
-cp .env.example .env        # then fill in OPENROUTER_API_KEY / OPENCODE_API_KEY / ANTHROPIC_API_KEY
 dialecticus personas.openrouter-free.yaml          # interactive TUI, free models
 dialecticus personas.openrouter-free.yaml --plain  # plain console stream
-dialecticus personas.zen-free.yaml                 # free models via OpenCode Zen
 ```
 
-`personas.openrouter-free.yaml` pairs two free OpenRouter models from different
-developers (Meta Llama vs Alibaba Qwen) and only needs `OPENROUTER_API_KEY`.
+The TUI **starts in step mode**: press `n` to advance one turn, `s` to switch to
+continuous. Full key map under [TUI controls](#tui-controls).
 
-`personas.zen-free.yaml` does the same through [OpenCode Zen](https://opencode.ai/zen)
-(DeepSeek vs Qwen) and only needs `OPENCODE_API_KEY`. Zen's free tier tends to be
-more generous on rate limits.
+## See the grounded debate work
 
-### Adding another OpenAI-compatible gateway
+The headline feature needs real files to show, so two self-contained demos ship in
+the repo. Both run on free OpenRouter models (`OPENROUTER_API_KEY` only), so a full
+run costs nothing:
+
+```sh
+dialecticus personas.zombie-debate.yaml   # debate over a small fictional corpus
+dialecticus personas.self-review.yaml     # the tool debating its own source
+```
+
+- **`personas.zombie-debate.yaml`** points two models at `./demo-corpus`, five
+  short fictional position papers, and has them argue "is a language model a
+  philosophical zombie?" Each side defends its own paper, reads the shared evidence
+  file, and must cite a `file:line` range. The philosophy is deliberately invented
+  (echo-qualia, the lumen index); the point is to watch the locate-then-read loop
+  run on files you can open yourself.
+- **`personas.self-review.yaml`** points dialecticus at its own source tree and
+  has two models argue whether the two-adapter design is the right provider
+  boundary, citing the actual `dialecticus/providers/*.py` lines they read.
+  Nothing here is fictional: the corpus is the package you just installed.
+
+Both are the same machinery you would use on your own corpus: drop a `file_access`
+block on a config and every persona gets read-only `list_files` / `search` /
+`read_file` over that directory. The mechanics are documented in
+[Grounded debate](#grounded-debate-read-only-file-access) below.
+
+## Writing your own debate
+
+A config is a topic, a kickoff, and a list of personas. `personas.example.yaml` is
+the annotated template; the short version:
+
+```yaml
+topic: "Whether a model can be said to understand anything."
+kickoff: "Open with your strongest claim."
+max_turns: 6
+show_thinking: true
+
+personas:
+  - name: Searle
+    provider: anthropic
+    model: claude-opus-4-8        # reads ANTHROPIC_API_KEY
+    max_tokens: 1024
+    identity: "You doubt that syntax ever amounts to understanding."
+  - name: Dennett
+    provider: openai              # any OpenAI-compatible endpoint
+    model: deepseek/deepseek-r1
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 1024
+    identity: "You argue understanding just is the right information processing."
+```
+
+Two ready-made free-model pairings are included:
+`personas.openrouter-free.yaml` (Meta Llama vs Alibaba Qwen, `OPENROUTER_API_KEY`)
+and `personas.zen.yaml` (DeepSeek vs Qwen via [OpenCode Zen](https://opencode.ai/zen),
+`OPENCODE_API_KEY`, more generous free rate limits).
+
+---
+
+The rest is reference: the file-access toolset, the keys, and the engine's cost,
+context, and failure behaviour.
+
+## Grounded debate (read-only file access)
+
+Grant every persona read-only access to one directory and they get three tools,
+`list_files`, `read_file`, and `search`, scoped to it:
+
+```yaml
+file_access:
+  directory: ./shared      # relative paths resolve against the config file
+```
+
+The engine then runs the tool-call loop inside a turn: the model lists the
+directory, locates the lines it cares about, reads those line ranges, and answers
+from what it read, all within the same turn. Tool activity shows up dimmed inline
+at the point in the reply where the model made the call
+(`⚙ search("perspectivism")`), and is saved into the session record and Markdown
+export.
+
+The toolset mirrors a locate-then-read workflow:
+
+- `list_files` lists every readable file with byte sizes.
+- `search(pattern, path?)` does a literal, case-insensitive search and returns
+  matching lines as `file:line: text`. It scans the whole directory by default;
+  pass `path` to restrict it to one file.
+- `read_file(path, offset?, limit?)` returns the file with every line numbered.
+  `offset` (1-based start line) and `limit` (line count) page through a long file,
+  and a trailing note reports the next offset to continue from. Reading around the
+  line numbers `search` reports is the fast path into a large document.
+
+Access is read-only and confined to the directory:
+
+- There is no write/edit/delete tool; the adapters never open a file for writing.
+- Paths that try to escape the directory, via `..` or a symlink pointing outside,
+  are refused. Absolute paths are resolved against the directory, not the
+  filesystem root.
+- A single read returns at most 64 KB (and 400 lines by default), a listing at
+  most 1000 entries, and a search at most 100 matches, so a large tree cannot blow
+  the context budget.
+
+Without a `file_access` block, no tools are offered and behaviour is unchanged.
+
+## Adding another OpenAI-compatible gateway
 
 The OpenAI adapter reaches any Chat Completions endpoint, so a new gateway is just
 config, not code: set `base_url` and `api_key_env` on each persona. OpenCode Zen is
@@ -77,47 +190,6 @@ only its DeepSeek / Qwen / MiniMax / GLM / Kimi / Grok models use
 `/messages`, which this adapter does not drive. Its `/models` list also omits
 context windows, so Zen personas fall back to the default budget unless you set
 `context_length:` yourself.
-
-## File access (read-only)
-
-Personas can be granted read-only access to a directory of files. Point a
-conversation at one directory and every persona gets three tools, `list_files`,
-`read_file`, and `search`, scoped to that directory:
-
-```yaml
-file_access:
-  directory: ./shared      # relative paths resolve against the config file
-```
-
-When this is set, the engine hands both adapters the tools and runs the
-tool-call loop inside a turn: the model can list the directory, locate the lines
-it cares about, read those line ranges, and then answer using what it read, all
-within the same turn. Tool activity shows up dimmed inline, at the point in the
-reply where the model made the call (`⚙ search("perspectivism")`), and is saved
-into the session record and Markdown export.
-
-The toolset mirrors a locate-then-read workflow:
-
-- `list_files` lists every readable file with byte sizes.
-- `search(pattern, path?)` does a literal, case-insensitive search and returns
-  matching lines as `file:line: text`. It scans the whole directory by default;
-  pass `path` to restrict it to one file.
-- `read_file(path, offset?, limit?)` returns the file with every line numbered.
-  `offset` (1-based start line) and `limit` (line count) page through a long
-  file, and a trailing note reports the next offset to continue from. Reading
-  around the line numbers `search` reports is the fast path into a large document.
-
-Access is read-only and confined to the directory:
-
-- There is no write/edit/delete tool; the adapters never open a file for writing.
-- Paths that try to escape the directory, via `..` or a symlink pointing
-  outside, are refused. Absolute paths are resolved against the directory, not
-  the filesystem root.
-- A single read returns at most 64 KB (and 400 lines by default), a listing at
-  most 1000 entries, and a search at most 100 matches, so a large tree cannot
-  blow the context budget.
-
-Without a `file_access` block, no tools are offered and behaviour is unchanged.
 
 ## TUI controls
 
@@ -131,16 +203,15 @@ Without a `file_access` block, no tools are offered and behaviour is unchanged.
 | `q`     | quit                                                       |
 
 The session opens with an intro panel (the participants' full system prompts and
-the kickoff) and **starts in step mode**: press `n` to advance one turn, or `s`
-to switch to continuous (auto) mode. The status line shows the mode (`running` /
-`paused` / `step` / `ended`), the turn count against `max_turns`, whether
-thinking is on, and the key to switch modes.
+the kickoff) and starts in step mode. The status line shows the mode (`running` /
+`paused` / `step` / `ended`), the turn count against `max_turns`, whether thinking
+is on, and the key to switch modes.
 
 ## Context budgeting
 
 Models have very different context windows (free OpenRouter models alone span
-32k..1M), and the transcript grows every turn. So before each turn the engine
-trims to fit *that speaker's* model:
+32k..1M), and the transcript grows every turn. So before each turn the engine trims
+to fit *that speaker's* model:
 
 - Each persona's window is resolved once at startup: a YAML `context_length`
   override wins, else OpenRouter's live `/models` catalog, else a small map of
@@ -165,7 +236,7 @@ whole session down:
 - After `max_retries` (default 5) the turn is given up on. A failed turn shows a
   red `✗` error line, records nothing in the transcript, and the loop moves on to
   the next speaker instead of crashing.
-- Non-rate-limit errors (auth, bad request, …) are shown the same way but are not
+- Non-rate-limit errors (auth, bad request, ...) are shown the same way but are not
   retried.
 
 `max_retries` and `max_retry_delay` are constructor arguments on `Engine`.

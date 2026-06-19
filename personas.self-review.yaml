@@ -1,0 +1,69 @@
+# Grounded-debate demo, dogfooding edition. dialecticus is pointed at its own
+# source tree, and two models argue a real design question about this codebase,
+# each citing the actual file:line they are reading. Run from the repo root:
+#   dialecticus personas.self-review.yaml          # TUI
+#   dialecticus personas.self-review.yaml --plain  # console
+#
+# Nothing here is fictional: the corpus is the package you just installed, so the
+# claims are checkable against the same files the reader is browsing. Both
+# personas run on free OpenRouter models; set OPENROUTER_API_KEY in .env. This is
+# the smallest honest way to show file_access on real documents without shipping
+# anyone else's text.
+
+topic: >
+  Is the two-adapter design the right provider boundary for dialecticus? One
+  native Anthropic adapter plus one OpenAI-compatible adapter is meant to cover
+  every provider by changing base_url. Does that boundary hold cleanly, or does
+  the OpenAI adapter quietly accumulate provider-specific special cases that leak
+  the abstraction?
+scope: >
+  The ./dialecticus directory is the package source. The provider layer lives in
+  dialecticus/providers/ (base.py defines the adapter contract, openai_adapter.py
+  and anthropic_adapter.py implement it, factory.py selects one). The normalized
+  event types are in events.py, the turn loop in engine.py, and the file tools in
+  filetools.py. Use the tools deliberately: list_files to see the tree, search to
+  find a symbol or branch (for example reasoning_content, Retry-After, base_url,
+  max_tokens), and read_file with offset/limit to read only the lines you cite.
+  Ground every claim about the code in a file and line range. Do not describe code
+  that is not there; if you are unsure, read the file before asserting. Stay civil
+  and concrete, and keep to the design question.
+kickoff: >
+  Let's begin. Defender opens: argue from the source that the two-adapter boundary
+  is clean, citing base.py and the two adapters, then stop. Write only your own
+  opening and do not speak for the Critic.
+
+max_turns: 6
+show_thinking: true
+
+file_access:
+  directory: ./dialecticus      # the package's own source, relative to this file
+
+personas:
+  - name: Defender
+    provider: openai
+    model: meta-llama/llama-3.3-70b-instruct:free
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 700
+    identity: >
+      You argue the two-adapter boundary is the right one: a single normalized
+      event contract (events.py) that both adapters emit, so the engine never
+      learns provider names. Show this from base.py and the two adapters, and
+      argue that provider quirks are correctly isolated inside each adapter rather
+      than leaking into engine.py. Cite the file and line range for every claim,
+      and read a file before describing it rather than guessing.
+
+  - name: Critic
+    provider: openai
+    model: qwen/qwen3-next-80b-a3b-instruct:free
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 700
+    identity: >
+      You suspect the abstraction leaks. Hunt the source for provider-specific
+      special cases that the "two adapters and you are done" story hides: how
+      reasoning is streamed (reasoning_content versus a summarized stream), how
+      max_tokens=0 is handled per provider, how rate-limit headers are parsed, how
+      the tool-call loop differs between adapters. Ground each finding in a file
+      and line range. Be fair: concede where the boundary genuinely holds, and do
+      not invent leaks that the code does not show.

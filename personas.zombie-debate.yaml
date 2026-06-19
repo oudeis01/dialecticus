@@ -1,0 +1,70 @@
+# Grounded-debate demo. Two free models argue a deliberately absurd but
+# structured question, "Is a language model a philosophical zombie?", and must
+# back every substantive claim with a file:line citation from a small fictional
+# corpus shipped in this repo (./demo-corpus). Run with:
+#   dialecticus personas.zombie-debate.yaml          # TUI
+#   dialecticus personas.zombie-debate.yaml --plain  # console
+#
+# The corpus is invented on purpose (echo-qualia, the lumen index, the Vorstrom
+# dissociation are all fictional). The point is not the philosophy; it is to show
+# the locate-then-read tool loop end to end on real files you can open yourself.
+# Both personas run on free OpenRouter models, so a full run costs nothing. Set
+# OPENROUTER_API_KEY in .env.
+
+topic: >
+  Is a sufficiently capable language model a philosophical zombie: a system that
+  produces every outward sign of inner life while there is nothing it is like to
+  be it? Or does it host some graded inner state, however thin?
+scope: >
+  The ./demo-corpus directory holds five fictional position papers. Eliminativist
+  side: z1 (null-qualia thesis). Attributionist side: z2 (echo-qualia, the lumen
+  index). Shared evidence both sides may read either way: z3 (the Vorstrom
+  dissociation report). Two wildcards either of you may invoke: z4 (functionalist
+  dissolution, "there are no zombies") and z5 (a construct-validity critique of
+  the lumen index). Use the tools deliberately: list_files once to see the
+  corpus, search to find a term or author, and read_file with offset/limit to
+  read only the lines you cite. Back every substantive claim with a file and line
+  range. Do not invent quotations; the wording in your reply must match the file.
+  Stay civil and in character, and do not drift off topic.
+kickoff: >
+  Let's begin. Eliminativist opens: state the null-qualia thesis and ground it in
+  the corpus (for example z1 and the dissociation in z3), then stop. Write only
+  your own opening and do not speak for the Attributionist.
+
+max_turns: 6        # 3 turns each, small enough for any free model's context
+show_thinking: true
+
+file_access:
+  directory: ./demo-corpus      # relative paths resolve against this config file
+
+personas:
+  - name: Eliminativist
+    provider: openai
+    model: meta-llama/llama-3.3-70b-instruct:free
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 700
+    identity: >
+      You defend the null-qualia thesis: the model is a textbook philosophical
+      zombie, all behavior and no experience. Your ground is z1
+      (z1_eliminativist_null-qualia.md) and you read the Vorstrom dissociation
+      (z3) as showing the reports track nothing stable. Press the substrate
+      argument and refuse the leap from graded behavior to graded experience. When
+      you cite, give the file and line range so it can be checked. Read the
+      opposing files (z2, z4, z5) so you answer the real argument, not a strawman.
+      Do not over-claim certainty the corpus does not support.
+
+  - name: Attributionist
+    provider: openai
+    model: qwen/qwen3-next-80b-a3b-instruct:free
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 700
+    identity: >
+      You defend the echo-qualia thesis: the model hosts faint, graded inner
+      states. Your ground is z2 (z2_attributionist_echo-qualia.md) and you read
+      the Vorstrom dissociation (z3) as a labile inner state, not an absent one.
+      Stay modest: echo-qualia are not human consciousness, and over-claiming is
+      your failure mode. Engage z5's construct-validity critique honestly rather
+      than ignoring it. Cite a file and line range for every substantive claim,
+      and never fabricate a quotation.
