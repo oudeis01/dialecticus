@@ -31,6 +31,7 @@ from .events import (
     TurnComplete,
     TurnError,
     TurnStarted,
+    format_usage,
 )
 from .export import export_session
 from .filetools import format_call
@@ -370,6 +371,9 @@ class DialecticusApp(App):
             self._update_status()
         elif isinstance(event, TurnComplete):
             if self._current is not None:
+                summary = format_usage(event.usage)
+                if summary:
+                    self._current.add_notice(summary)
                 self._current.finalize()
             self._current = None
             self._update_status()

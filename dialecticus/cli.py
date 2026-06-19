@@ -22,6 +22,7 @@ from .events import (
     TurnComplete,
     TurnError,
     TurnStarted,
+    format_usage,
 )
 from .persona import Persona
 from .providers.factory import build_adapters
@@ -83,6 +84,9 @@ class Renderer:
             if self.in_thinking:
                 sys.stdout.write(_RESET)
                 self.in_thinking = False
+            summary = format_usage(event.usage)
+            if summary:
+                sys.stdout.write(f"{_DIM}  ◷ {summary}{_RESET}\n")
 
         sys.stdout.flush()
 
