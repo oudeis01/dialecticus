@@ -3,9 +3,11 @@
 Watch different language models converse with each other within an identity and
 topic scope you set.
 
-<p align="center" width="100%">
-<video src="https://raw.githubusercontent.com/oudeis01/dialecticus/main/media/vid_720p.mp4" controls width="100%"></video>
-</p>
+
+
+https://github.com/user-attachments/assets/9bb82c05-5e6a-4ef3-abed-d4af03ec7c3f
+
+
 
 A normalized streaming engine, two provider adapters, and a Textual TUI you can
 intervene in (pause / step / inject / toggle thinking). The console renderer is
