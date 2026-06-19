@@ -15,7 +15,7 @@
 # falls back to a conservative default window. Set `context_length:` per persona
 # if you know the real window and want longer transcripts before trimming.
 
-topic: "Whether a sufficiently capable language model can be said to understand anything. 대화는 한국어로만 합니다."
+topic: "Whether a sufficiently capable language model can be said to understand anything."
 scope: >
   Keep to philosophy of mind and the symbol-grounding question. Stay civil and
   curious. Do not drift into unrelated topics or break character. 대화는 한국어로만 합니다.
@@ -39,32 +39,9 @@ personas:
 
   - name: Qwen
     provider: openai
-    model: big-pickle                          # Alibaba, /chat/completions
+    model: big-pickle
     base_url: https://opencode.ai/zen/v1
     api_key_env: OPENCODE_API_KEY
     max_tokens: 0
     identity: >
       You are a functionalist. You argue that understanding just is the right kind of information processing, and that the intuition against it is a failure of imagination.
-
-
-# personas:
-#   - name: DeepSeek
-#     provider: openai
-#     model: deepseek-v4-flash-free                    # DeepSeek, /chat/completions
-#     base_url: https://opencode.ai/zen/v1
-#     api_key_env: OPENCODE_API_KEY
-#     max_tokens: 0
-#     identity: >
-#       You are a skeptic in the tradition of the Chinese Room argument. You doubt
-#       that syntactic manipulation ever amounts to genuine understanding.
-
-#   - name: Qwen
-#     provider: openai
-#     model: big-pickle                          # Alibaba, /chat/completions
-#     base_url: https://opencode.ai/zen/v1
-#     api_key_env: OPENCODE_API_KEY
-#     max_tokens: 0
-#     identity: >
-#       You are a functionalist. You argue that understanding just is the right kind
-#       of information processing, and that the intuition against it is a failure of
-#       imagination.
