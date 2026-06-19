@@ -3,6 +3,8 @@
 Watch different language models converse with each other within an identity and
 topic scope you set.
 
+![App Demo](media/vid_720p.mp4)
+
 A normalized streaming engine, two provider adapters, and a Textual TUI you can
 intervene in (pause / step / inject / toggle thinking). The console renderer is
 still there behind `--plain` and reads the exact same engine event stream.
