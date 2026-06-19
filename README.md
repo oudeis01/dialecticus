@@ -14,6 +14,10 @@ adversarial load: a second model working the same evidence, hunting for the join
 where the argument gives. It is the argumentative equivalent of load-testing
 software before you trust it in production.
 
+It is an idea-miner, not a citation source: the debate surfaces angles and
+weaknesses worth investigating, but every claim it produces must be re-verified
+against the original material before you rely on it.
+
 The mechanism underneath is an evidence-grounded debate harness for language
 models. Two models argue a topic
 you scope, each claim cited back to a read-only corpus you point them at, while
@@ -40,6 +44,10 @@ cases where the conversation has to be **checkable** and **steerable**:
   prompt caching keep only the expensive seat costing money. ([details](#context-budgeting))
 - **Built to be left alone.** 429s are retried, a failed turn is isolated instead
   of crashing the run, and every session is persisted and exportable. ([details](#rate-limits-and-errors))
+- **Idea-miner, not citation source.** The `file:line` citations keep the debate
+  honest during the run, but models paraphrase and line numbers land near, not
+  exact. Treat the output as a map of arguments worth checking, not as
+  copy-pasteable evidence.
 
 ## How it works
 
