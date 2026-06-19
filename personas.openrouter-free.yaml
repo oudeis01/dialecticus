@@ -1,0 +1,41 @@
+# Free-tier OpenRouter test. Set OPENROUTER_API_KEY in .env, then run:
+#   dialecticus personas.openrouter-free.yaml
+#
+# Both personas go through the OpenAI-compatible adapter pointed at OpenRouter,
+# but they are models from different developers (Meta vs Alibaba) so you can
+# watch two architectures react to each other. Model ids verified live against
+# OpenRouter's catalog; swap in any ":free" id from https://openrouter.ai/models
+# if these change or are rate-limited.
+
+topic: "Whether a sufficiently capable language model can be said to understand anything."
+scope: >
+  Keep to philosophy of mind and the symbol-grounding question. Stay civil and
+  curious. Do not drift into unrelated topics or break character.
+kickoff: >
+  Let's begin. One of you, open with your strongest claim about whether models
+  like you understand language or merely manipulate it.
+
+max_turns: 6        # small on purpose: stays well within every model's context
+show_thinking: true # most free instruct models won't expose reasoning; that's fine
+
+personas:
+  - name: Llama
+    provider: openai
+    model: meta-llama/llama-3.3-70b-instruct:free   # Meta, 131k context
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 512
+    identity: >
+      You are a skeptic in the tradition of the Chinese Room argument. You doubt
+      that syntactic manipulation ever amounts to genuine understanding.
+
+  - name: Qwen
+    provider: openai
+    model: qwen/qwen3-next-80b-a3b-instruct:free     # Alibaba, 262k context
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 512
+    identity: >
+      You are a functionalist. You argue that understanding just is the right kind
+      of information processing, and that the intuition against it is a failure of
+      imagination.

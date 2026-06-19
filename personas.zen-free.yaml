@@ -1,0 +1,70 @@
+# Free-tier OpenCode Zen test. Set OPENCODE_API_KEY in .env, then run:
+#   dialecticus personas.zen-free.yaml
+#
+# OpenCode Zen (https://opencode.ai/zen) is a curated model gateway. Its
+# DeepSeek / Qwen / MiniMax / GLM / Kimi / Grok models speak the OpenAI-compatible
+# /chat/completions API, so the same OpenAI adapter reaches them by changing
+# base_url. (Its GPT models use /responses and Claude models use /messages, which
+# this chat-completions adapter does not drive, so stick to the families above.)
+#
+# Model ids are bare (no "opencode/" prefix in the API call) and were verified
+# live against https://opencode.ai/zen/v1/models. Swap in any "*-free" id from
+# that list if these change or get rate-limited.
+#
+# Note: Zen's /models endpoint does not report context_length, so each persona
+# falls back to a conservative default window. Set `context_length:` per persona
+# if you know the real window and want longer transcripts before trimming.
+
+topic: "Whether a sufficiently capable language model can be said to understand anything. 대화는 한국어로만 합니다."
+scope: >
+  Keep to philosophy of mind and the symbol-grounding question. Stay civil and
+  curious. Do not drift into unrelated topics or break character. 대화는 한국어로만 합니다.
+kickoff: >
+  Let's begin. One of you, open with your strongest claim about whether models
+  like you understand language or merely manipulate it.
+
+max_turns: 6        # small on purpose: stays well within every model's context
+show_thinking: true # DeepSeek-family models stream reasoning; others stay silent
+
+personas:
+  - name: Mimo
+    provider: openai
+    model: mimo-v2.5-free
+    base_url: https://opencode.ai/zen/v1
+    api_key_env: OPENCODE_API_KEY
+    max_tokens: 0
+    identity: >
+      You are a skeptic in the tradition of the Chinese Room argument. You doubt
+      that syntactic manipulation ever amounts to genuine understanding.
+
+  - name: Qwen
+    provider: openai
+    model: big-pickle                          # Alibaba, /chat/completions
+    base_url: https://opencode.ai/zen/v1
+    api_key_env: OPENCODE_API_KEY
+    max_tokens: 0
+    identity: >
+      You are a functionalist. You argue that understanding just is the right kind of information processing, and that the intuition against it is a failure of imagination.
+
+
+# personas:
+#   - name: DeepSeek
+#     provider: openai
+#     model: deepseek-v4-flash-free                    # DeepSeek, /chat/completions
+#     base_url: https://opencode.ai/zen/v1
+#     api_key_env: OPENCODE_API_KEY
+#     max_tokens: 0
+#     identity: >
+#       You are a skeptic in the tradition of the Chinese Room argument. You doubt
+#       that syntactic manipulation ever amounts to genuine understanding.
+
+#   - name: Qwen
+#     provider: openai
+#     model: big-pickle                          # Alibaba, /chat/completions
+#     base_url: https://opencode.ai/zen/v1
+#     api_key_env: OPENCODE_API_KEY
+#     max_tokens: 0
+#     identity: >
+#       You are a functionalist. You argue that understanding just is the right kind
+#       of information processing, and that the intuition against it is a failure of
+#       imagination.

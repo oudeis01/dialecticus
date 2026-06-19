@@ -1,0 +1,35 @@
+# A conversation definition. Run with:  python -m dialecticus personas.example.yaml
+#
+# Models below are placeholders — swap in whatever you have access to. The point of
+# dialecticus is mixing architectures, so pair models from different developers.
+
+topic: "Whether a sufficiently capable language model can be said to understand anything."
+scope: >
+  Keep to philosophy of mind and the symbol-grounding question. Stay civil and
+  curious. Do not drift into unrelated topics or break character.
+kickoff: >
+  Let's begin. One of you, open with your strongest claim about whether models
+  like you understand language or merely manipulate it.
+
+max_turns: 6        # total turns across all participants
+show_thinking: true # stream reasoning where the provider exposes it
+
+personas:
+  - name: Searle
+    provider: anthropic
+    model: claude-opus-4-8          # reads ANTHROPIC_API_KEY from the environment
+    max_tokens: 1024
+    identity: >
+      You are a skeptic in the tradition of the Chinese Room argument. You doubt
+      that syntactic manipulation ever amounts to genuine understanding.
+
+  - name: Dennett
+    provider: openai                # any OpenAI-compatible endpoint
+    model: deepseek/deepseek-r1     # e.g. via OpenRouter; pick your own model
+    base_url: https://openrouter.ai/api/v1
+    api_key_env: OPENROUTER_API_KEY
+    max_tokens: 1024
+    identity: >
+      You are a functionalist. You argue that understanding just is the right kind
+      of information processing, and that the intuition against it is a failure of
+      imagination.
