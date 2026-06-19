@@ -14,6 +14,27 @@ from typing import Union
 class Usage:
     input_tokens: int | None = None
     output_tokens: int | None = None
+    # Prompt-caching breakdown (Anthropic only). cache_read is billed at 0.1x
+    # input, cache_creation at 1.25x; both are subsets of the request's input.
+    cache_read_input_tokens: int | None = None
+    cache_creation_input_tokens: int | None = None
+
+
+def format_usage(usage: "Usage | None") -> str | None:
+    """One-line token summary for a finished turn, or None when unavailable.
+
+    Anthropic reports input_tokens as the *uncached* fresh input; cache_read
+    (billed 0.1x) and cache_creation (1.25x) are separate, so showing all three
+    makes the caching effect and the spend visible at a glance.
+    """
+    if usage is None:
+        return None
+    parts = [f"in {usage.input_tokens or 0}", f"out {usage.output_tokens or 0}"]
+    if usage.cache_read_input_tokens:
+        parts.append(f"cache-read {usage.cache_read_input_tokens}")
+    if usage.cache_creation_input_tokens:
+        parts.append(f"cache-write {usage.cache_creation_input_tokens}")
+    return " · ".join(parts)
 
 
 @dataclass
