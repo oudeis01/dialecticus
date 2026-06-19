@@ -14,6 +14,13 @@ kickoff: >
 max_turns: 6        # total turns across all participants
 show_thinking: true # stream reasoning where the provider exposes it
 
+# Optional: grant every persona read-only access to a directory. They get three
+# tools, list_files / read_file (line-numbered, pageable with offset+limit) /
+# search (literal, case-insensitive), scoped to this one directory. Relative
+# paths resolve against this config file's location. Remove the block for none.
+# file_access:
+#   directory: ./shared
+
 personas:
   - name: Searle
     provider: anthropic

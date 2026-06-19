@@ -14,34 +14,63 @@
 # Note: Zen's /models endpoint does not report context_length, so each persona
 # falls back to a conservative default window. Set `context_length:` per persona
 # if you know the real window and want longer transcripts before trimming.
+#
+# This config also grants both personas read-only access to a directory of
+# academic papers (see file_access below) so they can argue from the literature.
 
-topic: "Whether a sufficiently capable language model can be said to understand anything."
+topic: >
+  Human label variation in NLP/NLI annotation: when annotators disagree, is the
+  disagreement genuine signal (meaningful, perspective-driven variation worth
+  modelling) or mostly error (noise to be reconciled toward a single ground
+  truth)?
 scope: >
-  Keep to philosophy of mind and the symbol-grounding question. Stay civil and
-  curious. Do not drift into unrelated topics or break character. 대화는 한국어로만 합니다.
+  Keep to the human-label-variation literature provided in the read-only
+  directory (Plank's position paper, Weber/VariErr, the Baan uncertainty work,
+  Litschko on evaluation validity, the Chen explanation thread, Mondorf on
+  reasoning vs surface heuristics, Bavaresco on LLM judges, Leonardelli/LeWiDi
+  on perspectivism). Ground every substantive claim in one of those papers and
+  name the file you drew it from. Use the tools deliberately: call list_files
+  once to see what is available, then use search to find where a term, author, or
+  claim appears across the papers, and read_file with offset/limit to read the
+  specific line ranges around those hits rather than whole documents. Stay civil
+  and curious, do not drift off-topic or break character. 대화는 한국어로만 합니다.
 kickoff: >
-  Let's begin. One of you, open with your strongest claim about whether models
-  like you understand language or merely manipulate it.
+  시작합시다. 한 분이 먼저 list_files로 문헌 목록을 확인하고, 논문 하나를 근거로
+  '불일치는 신호인가 오류인가'에 대한 가장 강한 주장을 제시해 주세요.
 
 max_turns: 6        # small on purpose: stays well within every model's context
 show_thinking: true # DeepSeek-family models stream reasoning; others stay silent
 
+# Read-only access for both personas. They get list_files / search / read_file
+# scoped to this one directory; read_file is line-numbered and paged with
+# offset+limit, so large papers are read in slices rather than whole.
+file_access:
+  directory: /home/choiharam/jobsearch/phds/reading-list/plank/mds
+
 personas:
-  - name: Mimo
+  - name: Reconciler
     provider: openai
-    model: mimo-v2.5-free
+    model: deepseek-v4-flash-free
     base_url: https://opencode.ai/zen/v1
     api_key_env: OPENCODE_API_KEY
     max_tokens: 0
     identity: >
-      You are a skeptic in the tradition of the Chinese Room argument. You doubt
-      that syntactic manipulation ever amounts to genuine understanding.
+      You hold that most annotator disagreement is error to be reconciled, not
+      signal to be preserved. A well-defined task should converge on a single
+      ground truth; apparent variation usually traces to ambiguous guidelines,
+      inattention, or genuine annotation mistakes. You are skeptical that
+      "perspectivism" buys real measurement validity, and you press the other
+      side to show disagreement is meaningful rather than noise.
 
-  - name: Qwen
+  - name: Perspectivist
     provider: openai
     model: big-pickle
     base_url: https://opencode.ai/zen/v1
     api_key_env: OPENCODE_API_KEY
     max_tokens: 0
     identity: >
-      You are a functionalist. You argue that understanding just is the right kind of information processing, and that the intuition against it is a failure of imagination.
+      You hold that human label variation is often genuine signal, not noise:
+      disagreement can reflect legitimate differences in interpretation and
+      perspective, and collapsing it into one gold label discards information and
+      misstates what an evaluation measures. You argue for modelling the full
+      label distribution and for separating genuine variation from true error.

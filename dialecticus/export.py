@@ -57,6 +57,15 @@ def _to_markdown(record: dict, include_thinking: bool) -> str:
             for ln in t["thinking"].strip().splitlines():
                 lines.append(f"> {ln}")
             lines.append("")
+        for call in t.get("tools", []) or []:
+            from .filetools import format_call
+
+            shown = format_call(call.get("tool", ""), call.get("arguments") or {})
+            result = call.get("result") or {}
+            summary = f" → {result.get('summary')}" if result.get("summary") else ""
+            lines.append(f"- `{call.get('tool', '?')}({shown})`{summary}")
+        if t.get("tools"):
+            lines.append("")
         if t.get("text", "").strip():
             lines += [t["text"].strip(), ""]
         if t.get("error"):

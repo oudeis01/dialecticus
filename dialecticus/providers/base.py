@@ -11,8 +11,10 @@ from typing import AsyncIterator, Protocol
 from ..events import StreamEvent
 from ..persona import Persona
 
-# A single chat message in the provider-neutral shape both SDKs accept.
-Msg = dict[str, str]
+# A single chat message in the provider-neutral shape both SDKs accept. Values
+# are usually strings (role/content), but tool rounds add richer content: a list
+# of content blocks (Anthropic) or a tool_calls list (OpenAI).
+Msg = dict[str, object]
 
 
 class ProviderAdapter(Protocol):

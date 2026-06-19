@@ -81,6 +81,30 @@ class TurnError:
     message: str
 
 
+@dataclass
+class ToolCall:
+    """The model asked to run a read-only file tool mid-turn.
+
+    Purely informational for the UI/recorder: the adapter executes the call
+    against the sandbox and feeds the result back to the model before it
+    continues the same turn.
+    """
+
+    speaker: str
+    tool: str
+    arguments: dict
+
+
+@dataclass
+class ToolResult:
+    """The outcome of a ToolCall. `summary` is a short, log-friendly line."""
+
+    speaker: str
+    tool: str
+    ok: bool
+    summary: str
+
+
 StreamEvent = Union[
     TurnStarted,
     ThinkingDelta,
@@ -89,4 +113,6 @@ StreamEvent = Union[
     Injected,
     RetryNotice,
     TurnError,
+    ToolCall,
+    ToolResult,
 ]

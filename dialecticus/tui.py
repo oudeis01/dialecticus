@@ -11,6 +11,7 @@ import os
 
 from rich.console import Group
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.containers import Grid, VerticalScroll
@@ -25,11 +26,14 @@ from .events import (
     RetryNotice,
     TextDelta,
     ThinkingDelta,
+    ToolCall,
+    ToolResult,
     TurnComplete,
     TurnError,
     TurnStarted,
 )
 from .export import export_session
+from .filetools import format_call
 from .persona import Persona
 from .providers.factory import build_adapters
 from .session import Recorder
@@ -38,29 +42,45 @@ _PALETTE = ["cyan", "yellow", "magenta", "green", "blue", "red"]
 
 
 class TurnView(Static):
-    """One speaker's turn: a colored header, optional dim thinking, then the body."""
+    """One speaker's turn, rendered as ordered segments.
 
+    Thinking, text, and tool activity are kept in the order they actually arrived
+    so a file read shows up inline at the point in the reply where the model made
+    it, instead of jumping up to the speaker header. Each segment renders as its
+    own line block under the colored header.
+    """
+
+    # Segment kinds: "thinking", "text" (both accumulate), "tool", "notice".
     def __init__(self, speaker: str, color: str, show_thinking: bool) -> None:
         super().__init__()
         self.speaker = speaker
         self.color = color
         self.show_thinking = show_thinking
-        self._thinking = ""
-        self._body = ""
-        self._notices: list[str] = []
+        self._segments: list[list] = []  # each: [kind, content]
         self._error: str | None = None
         self._done = False
 
+    def _accumulate(self, kind: str, text: str) -> None:
+        """Append to the last segment if it is the same kind, else open a new one."""
+        if self._segments and self._segments[-1][0] == kind:
+            self._segments[-1][1] += text
+        else:
+            self._segments.append([kind, text])
+
     def append_thinking(self, text: str) -> None:
-        self._thinking += text
+        self._accumulate("thinking", text)
         self._rebuild()
 
     def append_text(self, text: str) -> None:
-        self._body += text
+        self._accumulate("text", text)
+        self._rebuild()
+
+    def add_tool(self, text: str) -> None:
+        self._segments.append(["tool", text])
         self._rebuild()
 
     def add_notice(self, text: str) -> None:
-        self._notices.append(text)
+        self._segments.append(["notice", text])
         self._rebuild()
 
     def set_error(self, text: str) -> None:
@@ -68,25 +88,31 @@ class TurnView(Static):
         self._rebuild()
 
     def finalize(self) -> None:
-        """Mark the turn done so the body re-renders as Markdown."""
+        """Mark the turn done so text segments re-render as Markdown."""
         self._done = True
         self._rebuild()
 
     def _rebuild(self) -> None:
         head = Text()
-        head.append(f"● {self.speaker}\n", style=f"bold {self.color}")
-        for notice in self._notices:
-            head.append(f"⟳ {notice}\n", style="dim yellow")
-        if self.show_thinking and self._thinking:
-            head.append(self._thinking + "\n", style="dim italic")
-
+        head.append(f"● {self.speaker}", style=f"bold {self.color}")
         parts: list = [head]
-        # While streaming, show plain colored text (cheap, no half-parsed
-        # Markdown); once the turn is done, re-render the body as Markdown.
-        if self._done and self._body.strip():
-            parts.append(Markdown(self._body))
-        elif self._body:
-            parts.append(Text(self._body, style=self.color))
+        for kind, content in self._segments:
+            if not content:
+                continue
+            if kind == "thinking":
+                if self.show_thinking:
+                    parts.append(Text(content, style="dim italic"))
+            elif kind == "text":
+                # While streaming, show plain colored text (cheap, no half-parsed
+                # Markdown); once the turn is done, re-render as Markdown.
+                if self._done and content.strip():
+                    parts.append(Markdown(content))
+                else:
+                    parts.append(Text(content, style=self.color))
+            elif kind == "tool":
+                parts.append(Text(content, style="dim cyan"))
+            elif kind == "notice":
+                parts.append(Text(f"⟳ {content}", style="dim yellow"))
 
         if self._error is not None:
             parts.append(Text(f"✗ {self._error}", style="bold red"))
@@ -100,6 +126,46 @@ class InjectedView(Static):
         out.append("» moderator: ", style="bold bright_white")
         out.append(text, style="italic bright_white")
         super().__init__(out)
+
+
+class IntroView(Static):
+    """A header panel shown once at the top: how it runs, who is talking, and the
+    kickoff, so the rules and the full prompts are visible before the first turn."""
+
+    def __init__(self, conv: Conversation, color_map: dict[str, str]) -> None:
+        body = Text()
+        body.append("How this runs\n", style="bold")
+        body.append(
+            "· Participants speak in turn (round-robin) until the turn limit.\n",
+            style="dim",
+        )
+        body.append("· Starts in STEP mode: press ", style="dim")
+        body.append("n", style="bold")
+        body.append(" for the next turn, ", style="dim")
+        body.append("s", style="bold")
+        body.append(" to switch step ↔ auto (continuous).\n", style="dim")
+        body.append(
+            "· space pause/resume · i inject · t thinking · e export · q quit\n",
+            style="dim",
+        )
+        if conv.workspace:
+            body.append(
+                "· Read-only file tools available: list_files, read_file, search.\n",
+                style="dim",
+            )
+
+        body.append("\nParticipants\n", style="bold")
+        for p in conv.personas:
+            color = color_map.get(p.name, "white")
+            body.append(f"● {p.name} ", style=f"bold {color}")
+            body.append(f"({p.model})\n", style="dim")
+            body.append(p.system_prompt.strip() + "\n\n", style="dim italic")
+
+        body.append("Kickoff\n", style="bold")
+        body.append(conv.kickoff.strip(), style="italic")
+        super().__init__(
+            Panel(body, border_style="dim", title="dialecticus", title_align="left")
+        )
 
 
 class ExportModal(ModalScreen[str | None]):
@@ -145,6 +211,7 @@ class DialecticusApp(App):
     #status { height: 1; color: $text-muted; padding: 0 1; }
     TurnView { margin: 1 0 0 0; }
     InjectedView { margin: 1 0 0 0; }
+    IntroView { margin: 0 0 1 0; }
     """
 
     BINDINGS = [
@@ -166,9 +233,12 @@ class DialecticusApp(App):
     ) -> None:
         super().__init__()
         self.conv = conv
+        from .filetools import FileSandbox
+
+        sandbox = FileSandbox(conv.workspace) if conv.workspace else None
         self.engine = Engine(
             conv.personas,
-            build_adapters(conv.personas),
+            build_adapters(conv.personas, sandbox=sandbox),
             conv.kickoff,
             max_turns=conv.max_turns,
             show_thinking=conv.show_thinking,
@@ -176,6 +246,9 @@ class DialecticusApp(App):
             initial_transcript=initial_transcript,
             start_turn=start_turn,
         )
+        # Start held in step mode so the viewer can read the intro and drive the
+        # pace; `n` advances a turn, `s` switches to continuous (auto) mode.
+        self.engine.set_step_mode(True)
         # Every run is recorded losslessly; a resume seeds the new file with the
         # prior turns so it stays complete and re-resumable.
         self.recorder = Recorder(conv, seed_turns=seed_turns)
@@ -200,6 +273,7 @@ class DialecticusApp(App):
         scroll = self.query_one("#transcript", VerticalScroll)
         scroll.can_focus = True
         self.set_focus(scroll)
+        scroll.mount(IntroView(self.conv, self._color))
         self.call_after_refresh(self._render_seed)
         self._update_status()
         self.run_worker(self._drive(), exclusive=True)
@@ -218,8 +292,19 @@ class DialecticusApp(App):
             view = TurnView(
                 t["speaker"], self._color.get(t["speaker"], "white"), self.engine.show_thinking
             )
-            view._thinking = t.get("thinking", "")
-            view._body = t.get("text", "")
+            # The record stores thinking/text/tools separately (interleave order
+            # is not preserved), so a resumed turn shows them in a fixed order.
+            if t.get("thinking"):
+                view._segments.append(["thinking", t["thinking"]])
+            if t.get("text"):
+                view._segments.append(["text", t["text"]])
+            for call in t.get("tools", []) or []:
+                shown = format_call(call.get("tool", ""), call.get("arguments") or {})
+                view._segments.append(["tool", f"⚙ {call.get('tool', '?')}({shown})"])
+                result = call.get("result") or {}
+                if result:
+                    mark = "↳" if result.get("ok") else "✗"
+                    view._segments.append(["tool", f"   {mark} {result.get('summary', '')}"])
             if t.get("error"):
                 view._error = t["error"]
             view._done = True
@@ -263,6 +348,14 @@ class DialecticusApp(App):
         elif isinstance(event, TextDelta):
             if self._current is not None:
                 self._current.append_text(event.text)
+        elif isinstance(event, ToolCall):
+            if self._current is not None:
+                shown = format_call(event.tool, event.arguments)
+                self._current.add_tool(f"⚙ {event.tool}({shown})")
+        elif isinstance(event, ToolResult):
+            if self._current is not None:
+                mark = "↳" if event.ok else "✗"
+                self._current.add_tool(f"   {mark} {event.summary}")
         elif isinstance(event, RetryNotice):
             if self._current is not None:
                 self._current.add_notice(
@@ -315,6 +408,8 @@ class DialecticusApp(App):
         turns = sum(1 for t in self.engine.transcript if t.speaker != self.engine.moderator_name)
         spin = f"{self._spinner_frames[self._spinner_i]} " if self._spinning() else ""
         text = f"{spin}{mode} · turn {turns}/{self.engine.max_turns} · thinking {thinking}"
+        if not self._finished:
+            text += " · n=next, s=auto" if self.engine.step_mode else " · s=step"
         status.update(text)
 
     # --- actions ---------------------------------------------------------

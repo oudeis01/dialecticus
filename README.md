@@ -70,6 +70,47 @@ only its DeepSeek / Qwen / MiniMax / GLM / Kimi / Grok models use
 context windows, so Zen personas fall back to the default budget unless you set
 `context_length:` yourself.
 
+## File access (read-only)
+
+Personas can be granted read-only access to a directory of files. Point a
+conversation at one directory and every persona gets three tools, `list_files`,
+`read_file`, and `search`, scoped to that directory:
+
+```yaml
+file_access:
+  directory: ./shared      # relative paths resolve against the config file
+```
+
+When this is set, the engine hands both adapters the tools and runs the
+tool-call loop inside a turn: the model can list the directory, locate the lines
+it cares about, read those line ranges, and then answer using what it read, all
+within the same turn. Tool activity shows up dimmed inline, at the point in the
+reply where the model made the call (`⚙ search("perspectivism")`), and is saved
+into the session record and Markdown export.
+
+The toolset mirrors a locate-then-read workflow:
+
+- `list_files` lists every readable file with byte sizes.
+- `search(pattern, path?)` does a literal, case-insensitive search and returns
+  matching lines as `file:line: text`. It scans the whole directory by default;
+  pass `path` to restrict it to one file.
+- `read_file(path, offset?, limit?)` returns the file with every line numbered.
+  `offset` (1-based start line) and `limit` (line count) page through a long
+  file, and a trailing note reports the next offset to continue from. Reading
+  around the line numbers `search` reports is the fast path into a large document.
+
+Access is read-only and confined to the directory:
+
+- There is no write/edit/delete tool; the adapters never open a file for writing.
+- Paths that try to escape the directory, via `..` or a symlink pointing
+  outside, are refused. Absolute paths are resolved against the directory, not
+  the filesystem root.
+- A single read returns at most 64 KB (and 400 lines by default), a listing at
+  most 1000 entries, and a search at most 100 matches, so a large tree cannot
+  blow the context budget.
+
+Without a `file_access` block, no tools are offered and behaviour is unchanged.
+
 ## TUI controls
 
 | Key     | Action                                                      |
@@ -81,8 +122,11 @@ context windows, so Zen personas fall back to the default budget unless you set
 | `t`     | toggle thinking display (applies to the next turn onward)  |
 | `q`     | quit                                                       |
 
-The status line shows the mode (`running` / `paused` / `step` / `ended`), the
-turn count against `max_turns`, and whether thinking is on.
+The session opens with an intro panel (the participants' full system prompts and
+the kickoff) and **starts in step mode**: press `n` to advance one turn, or `s`
+to switch to continuous (auto) mode. The status line shows the mode (`running` /
+`paused` / `step` / `ended`), the turn count against `max_turns`, whether
+thinking is on, and the key to switch modes.
 
 ## Context budgeting
 

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 
 from . import config
@@ -16,6 +17,8 @@ from .events import (
     RetryNotice,
     TextDelta,
     ThinkingDelta,
+    ToolCall,
+    ToolResult,
     TurnComplete,
     TurnError,
     TurnStarted,
@@ -59,6 +62,18 @@ class Renderer:
                 f"\n{_DIM}⟳ {event.reason}; retrying in {event.delay:.0f}s "
                 f"(attempt {event.attempt}){_RESET}\n"
             )
+        elif isinstance(event, ToolCall):
+            if self.in_thinking:
+                sys.stdout.write(_RESET)
+                self.in_thinking = False
+            from .filetools import format_call
+
+            sys.stdout.write(
+                f"\n{_DIM}⚙ {event.tool}({format_call(event.tool, event.arguments)}){_RESET}\n"
+            )
+        elif isinstance(event, ToolResult):
+            mark = "↳" if event.ok else "✗"
+            sys.stdout.write(f"{_DIM}  {mark} {event.summary}{_RESET}\n")
         elif isinstance(event, TurnError):
             if self.in_thinking:
                 sys.stdout.write(_RESET)
@@ -74,9 +89,11 @@ class Renderer:
 
 async def _run_plain(conv, initial_transcript=None, start_turn=0, seed_turns=None) -> None:
     from .context import resolve_context_lengths
+    from .filetools import FileSandbox
     from .session import Recorder
 
-    adapters = build_adapters(conv.personas)
+    sandbox = FileSandbox(conv.workspace) if conv.workspace else None
+    adapters = build_adapters(conv.personas, sandbox=sandbox)
     engine = Engine(
         conv.personas,
         adapters,
@@ -106,6 +123,13 @@ def _load_dotenv() -> None:
         pass  # python-dotenv optional; env vars still work without it
 
 
+def _check_workspace(conv) -> None:
+    """Fail early with a clear message if file_access points nowhere valid."""
+    if conv.workspace and not os.path.isdir(conv.workspace):
+        sys.stderr.write(f"error: file_access directory not found: {conv.workspace}\n")
+        sys.exit(1)
+
+
 def _cmd_run(argv: list[str]) -> None:
     parser = argparse.ArgumentParser(prog="dialecticus")
     parser.add_argument("config", help="path to a personas YAML file")
@@ -116,6 +140,7 @@ def _cmd_run(argv: list[str]) -> None:
     )
     args = parser.parse_args(argv)
     conv = config.load(args.config)
+    _check_workspace(conv)
 
     if args.plain:
         try:
@@ -179,6 +204,7 @@ def _cmd_resume(argv: list[str]) -> None:
 
     record = load_session(args.session)
     conv = conversation_from_record(record)
+    _check_workspace(conv)
     transcript, start_turn = transcript_from_record(record)
     additional = args.turns if args.turns is not None else conv.max_turns
     conv.max_turns = start_turn + additional  # budget = already done + more

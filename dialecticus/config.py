@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import yaml
@@ -25,6 +26,9 @@ class Conversation:
     kickoff: str
     max_turns: int
     show_thinking: bool
+    # Absolute path to a read-only directory every persona may browse via the
+    # list_files / read_file tools. None means no file access is granted.
+    workspace: str | None = None
 
 
 def load(path: str) -> Conversation:
@@ -33,6 +37,15 @@ def load(path: str) -> Conversation:
 
     topic = data.get("topic", "")
     scope = data.get("scope", "")
+
+    # A directory of files the personas may read. Relative paths resolve against
+    # the config file's own directory so a config and its files travel together.
+    workspace = None
+    file_access = data.get("file_access") or {}
+    directory = file_access.get("directory") if isinstance(file_access, dict) else None
+    if directory:
+        base = os.path.dirname(os.path.abspath(path))
+        workspace = os.path.normpath(os.path.join(base, os.path.expanduser(directory)))
 
     personas: list[Persona] = []
     for entry in data["personas"]:
@@ -65,4 +78,5 @@ def load(path: str) -> Conversation:
         kickoff=data.get("kickoff") or topic,
         max_turns=data.get("max_turns", 6),
         show_thinking=data.get("show_thinking", True),
+        workspace=workspace,
     )

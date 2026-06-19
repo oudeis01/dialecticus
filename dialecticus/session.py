@@ -24,6 +24,8 @@ from .events import (
     Injected,
     TextDelta,
     ThinkingDelta,
+    ToolCall,
+    ToolResult,
     TurnComplete,
     TurnError,
     TurnStarted,
@@ -67,6 +69,7 @@ class Recorder:
             "kickoff": conv.kickoff,
             "max_turns": conv.max_turns,
             "show_thinking": conv.show_thinking,
+            "workspace": conv.workspace,
             "personas": [asdict(p) for p in conv.personas],
             # When resuming, carry the prior turns forward so the new file is a
             # complete, re-resumable record rather than just the tail.
@@ -97,8 +100,22 @@ class Recorder:
                 "text": "",
                 "error": None,
                 "usage": None,
+                "tools": [],
                 "at": _now(),
             }
+        elif isinstance(event, ToolCall):
+            if self._cur is not None:
+                self._cur.setdefault("tools", []).append(
+                    {"tool": event.tool, "arguments": event.arguments, "result": None}
+                )
+        elif isinstance(event, ToolResult):
+            if self._cur is not None:
+                tools = self._cur.setdefault("tools", [])
+                # Attach to the most recent call still awaiting its result.
+                for entry in reversed(tools):
+                    if entry.get("result") is None:
+                        entry["result"] = {"ok": event.ok, "summary": event.summary}
+                        break
         elif isinstance(event, ThinkingDelta):
             if self._cur is not None:
                 self._cur["thinking"] += event.text
@@ -154,6 +171,7 @@ def conversation_from_record(record: dict) -> Conversation:
         kickoff=record["kickoff"],
         max_turns=record.get("max_turns", 6),
         show_thinking=record.get("show_thinking", True),
+        workspace=record.get("workspace"),
     )
 
 
