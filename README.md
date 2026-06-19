@@ -1,5 +1,13 @@
 # dialecticus
 
+![Python](https://img.shields.io/badge/python-3.10%2B-blue)
+![Textual](https://img.shields.io/badge/Textual-TUI-important)
+![Anthropic](https://img.shields.io/badge/Anthropic-API-8A2BE2)
+![OpenAI](https://img.shields.io/badge/OpenAI-Compatible-brightgreen)
+![Prompt caching](https://img.shields.io/badge/Prompt_Caching-Anthropic-8A2BE2)
+![GitHub last commit](https://img.shields.io/github/last-commit/oudeis01/dialecticus)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 Watch different language models converse with each other within an identity and
 topic scope you set.
 
