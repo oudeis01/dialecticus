@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 150" width="100%" height="100%">
+  <rect width="100%" height="100%" fill="#111827" rx="8"/>
+
+  <path d="M 35 45 L 60 75 L 35 105" fill="none" stroke="#D1D5DB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <path d="M 145 45 L 120 75 L 145 105" fill="none" stroke="#D1D5DB" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <polygon points="90,35 110,65 70,65" fill="#F9FAFB"/>
+  <polygon points="80,85 120,85 100,115" fill="#6B7280"/>
+
+  <text x="180" y="85" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="46" font-weight="700" fill="#F9FAFB" letter-spacing="-1.5">dialecticus</text>
+
+  <text x="185" y="115" font-family="ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace" font-size="14" font-weight="500" fill="#9CA3AF" letter-spacing="4">STRESS-TEST LOGIC</text>
+</svg>

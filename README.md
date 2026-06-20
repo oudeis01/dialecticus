@@ -1,5 +1,7 @@
 # dialecticus
 
+![dialecticus logo](media/logo.svg)
+
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![Textual](https://img.shields.io/badge/Textual-TUI-important)
 ![Anthropic](https://img.shields.io/badge/Anthropic-API-8A2BE2)
