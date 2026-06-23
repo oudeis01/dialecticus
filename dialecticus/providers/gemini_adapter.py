@@ -76,17 +76,27 @@ class GeminiAdapter(OpenAIAdapter):
         )
 
     def _thinking_request_params(self) -> dict[str, object]:
-        # Gemini maps the OpenAI-compatible reasoning_effort parameter to its
-        # own thinking budget.  "high" gives the model maximum thinking tokens.
-        # Additionally, include_thoughts requests thought summaries so they
-        # appear as reasoning_content in the delta (which the base adapter
-        # surfaces as ThinkingDelta).
+        # Gemini's OpenAI-compatible endpoint expects Google-specific
+        # parameters wrapped inside a top-level JSON key "extra_body".
+        # The OpenAI Python SDK's extra_body kwarg merges its content into
+        # the JSON body at top level, so we nest another "extra_body" layer
+        # here:
+        #   request body → { ..., "extra_body":
+        #     { "google": { "thinking_config": { "include_thoughts": ... } } } }
+        # "thinking_budget" is used for Gemini 2.5 models; 3.x models
+        # use "thinking_level" instead.  include_thoughts=True surfaces
+        # thought summaries as reasoning_content in the delta (which the base
+        # adapter converts to ThinkingDelta).
+        # NOTE: reasoning_effort overlaps with thinking_config and cannot be
+        # set simultaneously.
         return {
-            "reasoning_effort": "high",
             "extra_body": {
-                "google": {
-                    "thinking_config": {
-                        "include_thoughts": True,
+                "extra_body": {
+                    "google": {
+                        "thinking_config": {
+                            "include_thoughts": True,
+                            "thinking_budget": 8192,
+                        }
                     }
                 }
             },
