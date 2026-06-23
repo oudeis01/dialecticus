@@ -29,6 +29,10 @@ class Conversation:
     # Absolute path to a read-only directory every persona may browse via the
     # list_files / read_file tools. None means no file access is granted.
     workspace: str | None = None
+    # How many tool-capable rounds a single turn may spend before a final
+    # tools-off round forces an answer. Raise it for thorough research over a
+    # large corpus; only relevant when file_access is granted.
+    max_tool_rounds: int = 8
 
 
 def load(path: str) -> Conversation:
@@ -73,10 +77,15 @@ def load(path: str) -> Conversation:
             )
         )
 
+    # Absent or non-positive -> the default. At least one round must run.
+    raw_rounds = data.get("max_tool_rounds", 8)
+    max_tool_rounds = raw_rounds if isinstance(raw_rounds, int) and raw_rounds > 0 else 8
+
     return Conversation(
         personas=personas,
         kickoff=data.get("kickoff") or topic,
         max_turns=data.get("max_turns", 6),
         show_thinking=data.get("show_thinking", True),
         workspace=workspace,
+        max_tool_rounds=max_tool_rounds,
     )
