@@ -47,6 +47,14 @@ class OpenAIAdapter:
         self.tools = openai_tools() if sandbox else None
         self.max_tool_rounds = max(1, max_tool_rounds)
 
+    def _thinking_request_params(self) -> dict:
+        """Override in subclasses to inject provider-specific thinking params.
+
+        Called when *show_thinking* is True. Returns extra kwargs merged into
+        the Chat Completions request body. Base implementation is a no-op.
+        """
+        return {}
+
     async def stream_turn(
         self,
         messages: list[Msg],
@@ -64,6 +72,8 @@ class OpenAIAdapter:
             # tool calls and ending the turn with empty text.
             final_round = round_no == self.max_tool_rounds
             kwargs: dict = dict(model=persona.model, messages=convo, stream=True)
+            if show_thinking:
+                kwargs.update(self._thinking_request_params())
             # Omit max_tokens entirely when uncapped, so the model may generate up
             # to the context limit instead of being truncated mid-reply.
             if persona.max_tokens:
