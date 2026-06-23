@@ -23,7 +23,9 @@ from .base import Msg
 # back to this rather than streaming without a limit.
 ANTHROPIC_DEFAULT_MAX_TOKENS = 4096
 
-# Safety net so a model that keeps calling tools cannot loop forever.
+# Safety net so a model that keeps calling tools cannot loop forever. This many
+# tool-capable rounds are allowed, then one final round runs with no tools so the
+# model is forced to answer from what it read instead of ending an empty turn.
 MAX_TOOL_ROUNDS = 8
 
 # An ephemeral (5-minute) cache breakpoint. Basic prompt caching is GA, so no
@@ -77,12 +79,14 @@ class AnthropicAdapter:
         self,
         client: AsyncAnthropic | None = None,
         sandbox: FileSandbox | None = None,
+        max_tool_rounds: int = MAX_TOOL_ROUNDS,
     ) -> None:
         # AsyncAnthropic() reads ANTHROPIC_API_KEY from the environment.
         self.client = client or AsyncAnthropic()
         # When a sandbox is configured, expose the read-only file tools.
         self.sandbox = sandbox
         self.tools = anthropic_tools() if sandbox else None
+        self.max_tool_rounds = max(1, max_tool_rounds)
 
     async def stream_turn(
         self,
@@ -95,7 +99,11 @@ class AnthropicAdapter:
         convo: list[Msg] = list(messages)
         usage: Usage | None = None
 
-        for _ in range(MAX_TOOL_ROUNDS + 1):
+        for round_no in range(self.max_tool_rounds + 1):
+            # The final round offers no tools, forcing the model to answer from
+            # what it has already read rather than spending the round on yet more
+            # tool calls and ending the turn with empty text.
+            final_round = round_no == self.max_tool_rounds
             kwargs: dict = dict(
                 model=persona.model,
                 max_tokens=persona.max_tokens or ANTHROPIC_DEFAULT_MAX_TOKENS,
@@ -106,7 +114,7 @@ class AnthropicAdapter:
                 # adaptive: the model decides how much to think; summarized: stream
                 # a readable summary of the reasoning rather than empty blocks.
                 kwargs["thinking"] = {"type": "adaptive", "display": "summarized"}
-            if self.tools:
+            if self.tools and not final_round:
                 kwargs["tools"] = self.tools
 
             async with self.client.messages.stream(**kwargs) as stream:
@@ -140,7 +148,7 @@ class AnthropicAdapter:
                 for b in (final.content if final is not None else [])
                 if getattr(b, "type", None) == "tool_use"
             ]
-            if not tool_uses or not self.sandbox:
+            if not tool_uses or not self.sandbox or final_round:
                 break
 
             # Echo the assistant's tool-call turn back verbatim (including any
