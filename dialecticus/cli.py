@@ -97,7 +97,9 @@ async def _run_plain(conv, initial_transcript=None, start_turn=0, seed_turns=Non
     from .session import Recorder
 
     sandbox = FileSandbox(conv.workspace) if conv.workspace else None
-    adapters = build_adapters(conv.personas, sandbox=sandbox)
+    adapters = build_adapters(
+        conv.personas, sandbox=sandbox, max_tool_rounds=conv.max_tool_rounds
+    )
     engine = Engine(
         conv.personas,
         adapters,

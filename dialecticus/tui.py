@@ -239,7 +239,9 @@ class DialecticusApp(App):
         sandbox = FileSandbox(conv.workspace) if conv.workspace else None
         self.engine = Engine(
             conv.personas,
-            build_adapters(conv.personas, sandbox=sandbox),
+            build_adapters(
+                conv.personas, sandbox=sandbox, max_tool_rounds=conv.max_tool_rounds
+            ),
             conv.kickoff,
             max_turns=conv.max_turns,
             show_thinking=conv.show_thinking,
