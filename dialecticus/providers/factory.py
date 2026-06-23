@@ -9,6 +9,7 @@ from ..persona import Persona
 from .anthropic_adapter import AnthropicAdapter
 from .base import ProviderAdapter
 from .openai_adapter import OpenAIAdapter
+from .gemini_adapter import GeminiAdapter
 from .zai_adapter import ZAIAdapter
 
 
@@ -45,6 +46,21 @@ def build_adapters(
             cache.setdefault(
                 key,
                 ZAIAdapter(
+                    base_url=p.base_url,
+                    api_key=api_key,
+                    sandbox=sandbox,
+                    max_tool_rounds=max_tool_rounds,
+                ),
+            )
+        elif p.provider == "gemini":
+            api_key = os.environ.get(p.api_key_env) if p.api_key_env else None
+            # Gemini's OpenAI-compatible endpoint is fixed; the persona's
+            # base_url is a user-configurable override (defaults to None,
+            # which GeminiAdapter uses to apply the official endpoint).
+            key = ("gemini", p.base_url, p.api_key_env)
+            cache.setdefault(
+                key,
+                GeminiAdapter(
                     base_url=p.base_url,
                     api_key=api_key,
                     sandbox=sandbox,

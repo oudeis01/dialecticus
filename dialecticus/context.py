@@ -18,6 +18,7 @@ import json
 import urllib.request
 
 from .persona import Persona
+from .providers.gemini_adapter import GeminiAdapter
 from .providers.zai_adapter import ZAIAdapter
 
 DEFAULT_CONTEXT = 8192
@@ -67,6 +68,8 @@ def resolve_context_lengths(personas: list[Persona]) -> dict[str, int]:
             result[p.name] = _anthropic_context(p.model)
         elif p.provider == "zai":
             result[p.name] = ZAIAdapter.resolve_context(p.model)
+        elif p.provider == "gemini":
+            result[p.name] = GeminiAdapter.resolve_context(p.model)
         elif p.provider == "openai" and p.base_url and "openrouter.ai" in p.base_url:
             catalog = openrouter_cache.get(p.base_url)
             if catalog is None:
