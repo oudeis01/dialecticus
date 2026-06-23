@@ -71,9 +71,10 @@ One engine drives the turn loop and owns the shared transcript; two adapters
 normalize every provider into the same event stream (`TurnStarted`,
 `ThinkingDelta`, `TextDelta`, `TurnComplete`, `Injected`); the TUI and the
 `--plain` console renderer both read that one stream. Provider coverage is the
-whole story of those two adapters: native Anthropic for Claude, and one
-OpenAI-compatible adapter that reaches everything else (OpenAI, OpenRouter, local
-servers) by changing `base_url`. See [Provider boundary](#adding-another-openai-compatible-gateway)
+whole story of those two adapters: native Anthropic for Claude, and an
+OpenAI-compatible adapter family that reaches everything else (OpenAI, OpenRouter,
+local servers, and gateway-specific subclasses for Z.AI and Gemini that override
+thinking-parameter injection). See [Provider boundary](#adding-another-openai-compatible-gateway)
 for what that covers and where it stops.
 
 ## Quickstart
@@ -199,14 +200,27 @@ Without a `file_access` block, no tools are offered and behaviour is unchanged.
 
 ## Adding another OpenAI-compatible gateway
 
-The OpenAI adapter reaches any Chat Completions endpoint, so a new gateway is just
-config, not code: set `base_url` and `api_key_env` on each persona. OpenCode Zen is
-wired up this way (`base_url: https://opencode.ai/zen/v1`). One caveat for Zen:
-only its DeepSeek / Qwen / MiniMax / GLM / Kimi / Grok models use
+The OpenAI adapter reaches any standard Chat Completions endpoint, so many new
+gateways need nothing but config: set `base_url` and `api_key_env` on each persona.
+OpenCode Zen is wired up this way (`base_url: https://opencode.ai/zen/v1`). One
+caveat for Zen: only its DeepSeek / Qwen / MiniMax / GLM / Kimi / Grok models use
 `/chat/completions`; its GPT models use `/responses` and Claude models use
 `/messages`, which this adapter does not drive. Its `/models` list also omits
 context windows, so Zen personas fall back to the default budget unless you set
 `context_length:` yourself.
+
+Some gateways need their own adapter subclass because their thinking mode uses
+non-standard request parameters. Two live in the repo today:
+
+- **[Z.AI](https://platform.zaiai.com)** — ZAIAdapter extends the OpenAI adapter to
+  inject `thinking: {type: "enabled"}` via `extra_body` for GLM models.
+- **[Gemini (Google AI Studio)](https://aistudio.google.com/apikey)** —
+  GeminiAdapter extends the OpenAI adapter to wrap thinking parameters inside
+  `extra_body.google.thinking_config`, which Gemini's OpenAI-compatible endpoint
+  expects as a top-level JSON key.
+
+Both use the same factory cache, streaming, tool-call, and token-management logic
+as the base adapter — only `_thinking_request_params()` differs.
 
 ## TUI controls
 
@@ -262,7 +276,10 @@ whole session down:
 
 - `show_thinking` streams reasoning **where the provider exposes it**. Anthropic
   models stream a summarized chain of thought; DeepSeek-style models stream
-  `reasoning_content`; OpenAI's o-series does not expose raw reasoning at all.
+  `reasoning_content`; Z.AI GLM models inject `thinking: {type: "enabled"}` via
+  `extra_body`; Gemini models wrap thinking parameters inside
+  `extra_body.google.thinking_config`; OpenAI's o-series does not expose raw
+  reasoning at all.
 - Turn order is round-robin over `personas`; the loop stops at `max_turns`.
 - `max_tokens` caps a reply. Setting it to `0` or `null` (or omitting it with no
   value) means **no cap**: the OpenAI adapter drops the parameter so the model can
