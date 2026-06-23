@@ -28,7 +28,10 @@ same room and pay only for the seat that matters.
 
 
 
-https://github.com/user-attachments/assets/9bb82c05-5e6a-4ef3-abed-d4af03ec7c3f
+
+https://github.com/user-attachments/assets/c6b5fb09-3056-4a54-846a-baaef549e19f
+
+
 
 
 
