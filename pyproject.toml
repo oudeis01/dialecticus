@@ -1,7 +1,7 @@
 [project]
 name = "dialecticus"
 version = "0.1.0"
-description = "Watch different language models converse within an identity and topic scope you set"
+description = "Think of it as a stress test for arguments: adversarial load-testing for LLM reasoning with live moderation"
 requires-python = ">=3.10"
 dependencies = [
     "anthropic>=0.40",
